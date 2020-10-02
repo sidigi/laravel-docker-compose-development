@@ -1,0 +1,96 @@
+version: "3.7"
+
+networks:
+  laravel:
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    volumes:
+      - ./:/var/www/html:delegated
+    ports:
+      - "8080:80"
+    depends_on:
+      - php
+      - db
+    networks:
+      - laravel
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8081:8080
+    depends_on:
+      - db
+    environment:
+      ADMINER_DEFAULT_DB_DRIVER: pgsql
+      ADMINER_DEFAULT_DB_HOST: db
+      ADMINER_DEFAULT_DB_NAME: laravel
+
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: laravel
+      POSTGRES_DB: laravel
+      POSTGRES_PASSWORD: secret
+
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    volumes:
+      - ./:/var/www/html:delegated
+    ports:
+      - "9000:9000"
+    networks:
+      - laravel
+
+  php-worker:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    restart: unless-stopped
+    tty: true
+    volumes:
+      - ./:/var/www/html:delegated
+    working_dir: /var/www/html
+    user: laravel
+    networks:
+      - laravel
+    command: php artisan queue:work --verbose --tries=3 --timeout=90
+
+  composer:
+    build:
+      context: .
+      dockerfile: docker/composer/Dockerfile
+    volumes:
+      - ./:/var/www/html
+    working_dir: /var/www/html
+    depends_on:
+      - php
+    user: laravel
+    networks:
+      - laravel
+    entrypoint: ["composer"]
+
+  artisan:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    volumes:
+      - ./:/var/www/html:delegated
+    depends_on:
+      - db
+    working_dir: /var/www/html
+    user: laravel
+    entrypoint: ["php", "/var/www/html/artisan"]
+    networks:
+      - laravel
+
+volumes:
+  mysql:
+    driver: local
