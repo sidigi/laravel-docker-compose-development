@@ -2,6 +2,7 @@ version: "3.7"
 
 networks:
   laravel:
+    driver: bridge
 
 services:
   app:
@@ -29,14 +30,20 @@ services:
       ADMINER_DEFAULT_DB_DRIVER: pgsql
       ADMINER_DEFAULT_DB_HOST: db
       ADMINER_DEFAULT_DB_NAME: laravel
+    networks:
+      - laravel
 
   db:
-    image: postgres
+    image: postgres:latest
     restart: always
     environment:
       POSTGRES_USER: laravel
       POSTGRES_DB: laravel
       POSTGRES_PASSWORD: secret
+    volumes:
+      - pgsql:/var/lib/postgresql/data
+    networks:
+      - laravel
 
   php:
     build:
@@ -92,5 +99,5 @@ services:
       - laravel
 
 volumes:
-  mysql:
+  pgsql:
     driver: local
